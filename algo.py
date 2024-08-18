@@ -6,7 +6,6 @@ import lstOut
 from tensorflow.keras.layers import Input, LSTM, Dense, RepeatVector, TimeDistributed
 from tensorflow.keras.models import Model
 
-
 # Normalize data (optional, helps with training)
 input_data = lstIn.input_numbers / 4294967296
 output_data = lstOut.output_numbers / 4294967296
@@ -14,7 +13,7 @@ output_data = lstOut.output_numbers / 4294967296
 # Define model parameters
 input_dim = input_data.shape[1]
 output_dim = output_data.shape[1]
-latent_dim = 128  # Increased dimension of the hidden state
+latent_dim = 256  # Further increased dimension of the hidden state
 
 # Encoder
 encoder_inputs = Input(shape=(input_dim, 1))
@@ -22,6 +21,10 @@ encoder = LSTM(latent_dim, return_state=True, return_sequences=True)
 encoder_outputs, state_h, state_c = encoder(encoder_inputs)
 
 # Add more layers to the encoder
+encoder = LSTM(latent_dim, return_state=True, return_sequences=True)
+encoder_outputs, state_h, state_c = encoder(encoder_outputs)
+
+# Add another layer to the encoder
 encoder = LSTM(latent_dim, return_state=True, return_sequences=True)
 encoder_outputs, state_h, state_c = encoder(encoder_outputs)
 
@@ -33,6 +36,10 @@ decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
 decoder_outputs, _, _ = decoder_lstm(decoder_inputs, initial_state=encoder_states)
 
 # Add more layers to the decoder
+decoder_lstm = LSTM(latent_dim, return_sequences=True)
+decoder_outputs = decoder_lstm(decoder_outputs)
+
+# Add another layer to the decoder
 decoder_lstm = LSTM(latent_dim, return_sequences=True)
 decoder_outputs = decoder_lstm(decoder_outputs)
 
@@ -50,7 +57,7 @@ input_data = np.expand_dims(input_data, axis=-1)
 output_data = np.expand_dims(output_data, axis=-1)
 
 # Train model with more epochs
-model.fit([input_data, input_data], output_data, epochs=500, batch_size=4)
+model.fit([input_data, input_data], output_data, epochs=1000, batch_size=4)
 
 # Prediction
 predictions = model.predict([input_data, input_data])
@@ -61,5 +68,12 @@ predictions = predictions * 4294967296
 # Apply modulus operation to ensure predictions are in the correct range
 predictions = np.mod(predictions, 4294967296)
 
-# Print predictions
+# Print predictions and real outputs as real numbers
+np.set_printoptions(suppress=True, formatter={'float_kind': '{:f}'.format})
+
+print("Predicted Outputs:")
 print(predictions)
+
+print("\nReal Outputs:")
+real_outputs = output_data * 4294967296
+print(real_outputs)
