@@ -6,5 +6,6 @@ numpy,
 keras, 
 tensorflow, 
 scikit-learn.
+matplotlib
 
-et me permet de continier à pratiquer python
+et me permet de continuer à pratiquer python
