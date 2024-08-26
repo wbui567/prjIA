@@ -1,9 +1,10 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, LSTM, Dense
+from tensorflow.keras.layers import Input, LSTM, Dense, Bidirectional
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from pyod.models.auto_encoder import AutoEncoder
 import matplotlib.pyplot as plt
 import lstIn
 import lstOut
@@ -31,26 +32,34 @@ latent_dim = 256
 
 # Encoder
 encoder_inputs = Input(shape=(X_reshaped.shape[1], 1))
-encoder = LSTM(latent_dim, return_state=True)
-encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+encoder = Bidirectional(LSTM(latent_dim, return_sequences=True, return_state=True))
+encoder_outputs, forward_h, forward_c, backward_h, backward_c = encoder(encoder_inputs)
+state_h = tf.keras.layers.Concatenate()([forward_h, backward_h])
+state_c = tf.keras.layers.Concatenate()([forward_c, backward_c])
 encoder_states = [state_h, state_c]
 
 # Decoder
 decoder_inputs = Input(shape=(y_reshaped.shape[1], 1))
-decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
+decoder_lstm = LSTM(latent_dim * 2, return_sequences=True, return_state=True)
 decoder_outputs, _, _ = decoder_lstm(decoder_inputs, initial_state=encoder_states)
-decoder_dense = Dense(1)
+decoder_dense = Dense(1, activation='relu')  # Added ReLU activation
 decoder_outputs = decoder_dense(decoder_outputs)
 
 # Define the model
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
+# Custom loss function
+def custom_loss(y_true, y_pred):
+    mse = tf.reduce_mean(tf.square(y_true - y_pred))
+    scale_factor = tf.reduce_mean(tf.math.log(tf.math.abs(y_true) + 1))
+    return mse * scale_factor
+
 # Compile the model
-model.compile(optimizer='adam', loss='mse')
+model.compile(optimizer='adam', loss=custom_loss)
 
 # Train the model
 history = model.fit([X_train, y_train], y_train, 
-                    epochs=100, 
+                    epochs=150,  # Increased epochs
                     batch_size=32, 
                     validation_split=0.2,
                     verbose=1)
@@ -70,7 +79,7 @@ print(f"\nRoot Mean Squared Error: {rmse:.4f}")
 # Visualization
 plt.figure(figsize=(12, 6))
 plt.scatter(y_test_original.flatten(), predictions.flatten())
-plt.plot([0, 100], [0, 100], 'r--', lw=2)
+plt.plot([0, np.max(y_test_original)], [0, np.max(y_test_original)], 'r--', lw=2)
 plt.xlabel('Actual Values')
 plt.ylabel('Predicted Values')
 plt.title('Actual vs Predicted Values')
