@@ -5,7 +5,7 @@ Ce petit projet me permet de continuer à utiliser les librairies:
 numpy, 
 keras, 
 tensorflow, 
-scikit-learn.
-matplotlib
+scikit-learn,
+matplotlib.
 
 et me permet de continuer à pratiquer python
